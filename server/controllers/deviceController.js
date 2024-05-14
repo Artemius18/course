@@ -1,7 +1,8 @@
 const uuid = require('uuid')
 const path = require('path');
-const {Device} = require('../models/models')
-const ApiError = require('../error/ApiError')
+const {Device, DeviceInfo} = require('../models/models')
+const ApiError = require('../error/ApiError');
+const { deserialize } = require('v8');
 
 class DeviceController {
     async create(req, res, next) {
@@ -11,6 +12,16 @@ class DeviceController {
             let fileName = uuid.v4() + ".jpg"
             img.mv(path.resolve(__dirname,'..', 'static', fileName))
     
+            if(info) {
+                info = JSON.parse(info)
+                info.array.forEach(i => {
+                    DeviceInfo,this.create({
+                        title: i.title,
+                        description: i.description,
+                        deviceId: device.id
+                    })
+                });   
+            }
             const device = await Device.create({
                 name,
                 price,
@@ -32,10 +43,10 @@ class DeviceController {
         limit = limit || 10
         let offset = page * limit - limit
         if(!brandId && !typeId) {
-            devices = await Device.findAll({limit, offset})
+            devices = await Device.findAndCountAll({limit, offset})
         }
         if(brandId && !typeId) {
-            devices = await Device.findAll({
+            devices = await Device.findAndCountAll({
                 where: {
                     brandId
                 },
@@ -44,7 +55,7 @@ class DeviceController {
             })
         }
         if(!brandId && typeId) {
-            devices = await Device.findAll({
+            devices = await Device.findAndCountAll({
                 where: {
                     typeId
                 },
@@ -53,7 +64,7 @@ class DeviceController {
             })
         }
         if(brandId && typeId) {
-            devices = await Device.findAll({
+            devices = await Device.findAndCountAll({
                 where: {
                     typeId, brandId
                 }, 
@@ -65,7 +76,16 @@ class DeviceController {
     }
 
     async getOne(req, res) {
-        
+        const {id} = req.params
+        //подгружать характеристики нужно сразу
+        //нужны когда открываем страницу товара
+        const device = await Device.findOne({
+            where: {id},
+            include: [{
+                model: DeviceInfo, as: 'info' 
+            }]
+        })
+        return res.json(device)
     }
 }
 
